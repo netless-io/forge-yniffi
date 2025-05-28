@@ -1,0 +1,85 @@
+plugins {
+    alias libs.plugins.androidLibrary
+    alias libs.plugins.jetbrainsKotlinAndroid
+    alias libs.plugins.vanniktechMavenPublish
+    // The magic plugin that automates the cargo integration
+    alias libs.plugins.cargo.ndk
+}
+
+android {
+    namespace 'io.agora.board.forge.yniffi.core'
+    compileSdk 34
+    ndkVersion "25.1.8937393"
+
+    defaultConfig {
+        minSdk 21
+        targetSdk 34
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles "consumer-rules.pro"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+}
+
+dependencies {
+    implementation libs.androidx.core.ktx
+    implementation libs.androidx.appcompat
+    implementation libs.gson
+
+    // Essential! Note that UniFFI dictates the minimum supported version, and this may change with new releases
+    // TODO: Migrate version to TOML (doesn't work). Likely related issue: https://github.com/gradle/gradle/issues/21267
+    //noinspection UseTomlInstead
+    implementation 'net.java.dev.jna:jna:5.15.0@aar'
+
+    androidTestImplementation libs.androidx.junit
+    androidTestImplementation libs.androidx.espresso.core
+}
+
+cargoNdk {
+    module = "rust"  // Directory containing Cargo.toml
+    librariesNames = ["libuniffi_yniffi.so"] // 注意匹配 lib 名
+    extraCargoBuildArguments = ["-p", "yniffi"]
+}
+
+android.libraryVariants.all { variant ->
+    def bDir = layout.buildDirectory.dir("generated/source/uniffi/${variant.name}/java").get()
+    def generateBindings = tasks.register("generate${variant.name.capitalize()}UniFFIBindings", Exec) {
+        workingDir '../rust'
+        commandLine 'cargo', 'run', '-p', 'uniffi-bindgen', 'generate', '--library', '../core/src/main/jniLibs/arm64-v8a/libuniffi_yniffi.so', '--language', 'kotlin', '--out-dir', bDir
+
+        dependsOn "buildCargoNdk${variant.name.capitalize()}"
+    }
+
+    variant.javaCompileProvider.get().dependsOn(generateBindings)
+
+    // Some stuff here is broken, since Android Tests don't run after running gradle build,
+    // but do otherwise. Also CI is funky.
+    tasks.named("compile${variant.name.capitalize()}Kotlin").configure {
+        dependsOn generateBindings
+    }
+
+    tasks.named("connectedDebugAndroidTest").configure {
+        dependsOn generateBindings
+    }
+
+    def sourceSet = variant.sourceSets.find { it.name == variant.name }
+    sourceSet.java.srcDir layout.buildDirectory.file("generated/source/uniffi/${variant.name}/java")
+
+    // UniFFI tutorial notes that they made several attempts like this but were unsuccessful coming
+    // to a good solution for forcing the directory to be marked as generated (short of checking in
+    // project files, I suppose).
+    // idea.module.generatedSourceDirs += file("${buildDir}/generated/source/uniffi/${variant.name}/java/uniffi")
+}

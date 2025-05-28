@@ -1,0 +1,18 @@
+==== Test Results SDM-730G(2019.04)====
+Mode       File         ApplyUpdate(ms)    EncodeStateAsUpdate(ms)
+YQuickJS   500K.bin     691                2488
+YQuickJS   980K.bin     1594               6830
+YQuickJS   1800K.bin    2504               23288
+Yrs        500K.bin     358                130
+Yrs        980K.bin     955                175
+Yrs        1800K.bin    1580               364
+
+
+==== Test Results SDM-870(2021.01)====
+Mode       File         ApplyUpdate(ms)    EncodeStateAsUpdate(ms)
+YQuickJS   500K.bin     678                1770
+YQuickJS   980K.bin     996                5124
+YQuickJS   1800K.bin    1610               16841
+Yrs        500K.bin     419                170
+Yrs        980K.bin     713                160
+Yrs        1800K.bin    773                270
