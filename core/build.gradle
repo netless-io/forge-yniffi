@@ -49,6 +49,8 @@ dependencies {
 }
 
 cargoNdk {
+    targets = ["arm64", "arm", "x86", "x86_64"]
+
     module = "rust"  // Directory containing Cargo.toml
     librariesNames = ["libuniffi_yniffi.so"] // 注意匹配 lib 名
     extraCargoBuildArguments = ["-p", "yniffi"]
